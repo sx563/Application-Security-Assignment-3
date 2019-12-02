@@ -153,6 +153,19 @@ def spell_check():
     if request.method == "GET":
         return render_template("spell_check_input.html", isAdmin=(user.username == "admin"))
 
+@app.route("/history/query<int:query_id>")
+def query_review(query_id):
+    if "user_id" not in session:
+        abort(401)
+    user = User.query.filter_by(id=session["user_id"]).first()
+    if user.username == "admin":
+        query_record = QueryRecord.query.filter_by(id=query_id).first_or_404()
+    else:
+        query_record = QueryRecord.query.filter_by(id=query_id, username=user.username).first_or_404()
+    return render_template("query_review.html", query_id=query_record.id, username=query_record.username, 
+                            query_text=query_record.query_text, query_results=query_record.query_results, 
+                            isAdmin=(user.username == "admin"))
+
 @app.route("/logout")
 def logout():
     if "user_id" in session:
