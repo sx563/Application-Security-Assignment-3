@@ -166,6 +166,18 @@ def query_review(query_id):
                             query_text=query_record.query_text, query_results=query_record.query_results, 
                             isAdmin=(user.username == "admin"))
 
+@app.route("/history")
+def query_history():
+    if "user_id" not in session:
+        abort(401)
+    user = User.query.filter_by(id=session["user_id"]).first()
+    if user.username == "admin":
+        query_records = QueryRecord.query.order_by(QueryRecord.id)
+    else:
+        query_records = QueryRecord.query.filter_by(username=user.username).order_by(QueryRecord.id)
+    numqueries = query_records.count()
+    return render_template("query_history.html", numqueries=numqueries, query_records=query_records, isAdmin=(user.username == "admin"))
+
 @app.route("/logout")
 def logout():
     if "user_id" in session:

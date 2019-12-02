@@ -1,0 +1,18 @@
+{% extends "template.html" %}
+{% block title %}
+Spell Check
+{% endblock %}
+{% block content %}
+    <h2>
+        Query History
+        <a href="{{url_for('spell_check')}}">Spell Check</a>
+        {% if isAdmin %}<a href="{{url_for('login_history')}}">Login History</a>{% endif %} 
+        <a href="{{url_for('logout')}}">Logout</a>
+    </h2>
+    <p id="numqueries">Number of Query Records: {{numqueries}}</p>
+    {% for query_record in query_records %}
+        <p><a id="query{{ query_record.id }}" href="/history/query{{ query_record.id }}">Query Record ID {{ query_record.id }}</a></p>
+    {% endfor %}
+    
+    
+{% endblock %}
