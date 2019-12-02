@@ -33,6 +33,13 @@ def add_custom_headers(response):
 
 db = SQLAlchemy(app)
 
+class LogRecord(db.Model):
+    __tablename__ = "log_records"
+    id = db.Column(db.Integer, primary_key=True, autoincrement=True)
+    user_id = db.Column(db.Integer, nullable=False)
+    login_time = db.Column(db.DateTime, nullable=False)
+    logout_time = db.Column(db.DateTime)
+
 class QueryRecord(db.Model):
     __tablename__ = "query_records"
     id = db.Column(db.Integer, primary_key=True, autoincrement=True)
@@ -62,6 +69,16 @@ def addQueryRecord(username, text, misspelled):
     db.session.add(query_record)  
     db.session.commit()
 
+def addLogRecord(user_id, login_time):
+    log_record = LogRecord(user_id=user_id, login_time=login_time)
+    db.session.add(log_record)  
+    db.session.commit()
+    
+def updateLogRecord(user_id, logout_time):
+    log_record = LogRecord.query.filter_by(user_id=user_id, logout_time=None).order_by(LogRecord.login_time).first()
+    log_record.logout_time = logout_time
+    db.session.add(log_record)  
+    db.session.commit()
 
 def isValidTwoFA(twofa):
     if not (10 <= len(twofa) <= 11):
@@ -87,7 +104,6 @@ def findMisspelled(text):
 @app.route("/")
 def home(): 
     return redirect(url_for("login"))
-
 
 @app.route("/register", methods = ["GET", "POST"])
 def register():
@@ -127,6 +143,7 @@ def login():
             if(sha256_crypt.verify(password, user.password)):
                 if(user.twofa == twofa):
                     session["user_id"] = user.id
+                    addLogRecord(user.id, datetime.utcnow())
                     flash("Success: User logged in", "success")
                     return redirect(url_for("spell_check"))
                 else:
@@ -181,6 +198,7 @@ def query_history():
 @app.route("/logout")
 def logout():
     if "user_id" in session:
+        updateLogRecord(session["user_id"], datetime.utcnow())
         session.clear()
         flash("Success: User logged out", "success")
     return redirect(url_for("login"))
