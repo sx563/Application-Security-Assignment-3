@@ -1,0 +1,29 @@
+<!DOCTYPE html>
+<html lang="en" dir="ltr">
+    <head>
+        <meta charset="utf-8">
+        <title>{% block title %}{% endblock %}</title>
+    </head>
+    <body>
+        <h1>Spell Check App</h1>
+        {% with failures = get_flashed_messages(category_filter=["failure"]) %}
+            {% if failures %}
+                <ul class=flashes id="result">
+                {% for failure in failures %}
+                <li><font color="red">{{ failure }}</font></li>
+                {% endfor %}
+                </ul>
+            {% endif %}
+        {% endwith %}
+        {% with successes = get_flashed_messages(category_filter=["success"]) %}
+            {% if successes %}
+                <ul class=flashes id="result">
+                {% for success in successes %}
+                <li><font color="green">{{ success }}</font></li>
+                {% endfor %}
+                </ul>
+            {% endif %}
+        {% endwith %}
+        {% block content %}{% endblock %}
+    </body>
+</html>

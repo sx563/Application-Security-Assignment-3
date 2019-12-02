@@ -1,0 +1,22 @@
+{% extends "template.html" %}
+{% block title %}
+Spell Check Results
+{% endblock %}
+{% block content %}
+
+    <h2>
+        Spell Check Results
+        <a href="{{url_for('logout')}}">Logout</a>
+    </h2>
+    <p>
+        Input Text:
+        <textarea name="textout" id="textout">{{textout}}</textarea><br><br>
+        Mispelled Words:
+        <textarea name="misspelled" id="misspelled">{{misspelled}}</textarea><br><br>
+        <a href="{{url_for('spell_check')}}">Spell check another set of input text</a><br><br>
+    </p>
+
+
+    
+    
+{% endblock %}

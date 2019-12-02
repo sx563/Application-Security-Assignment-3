@@ -1,0 +1,43 @@
+<!DOCTYPE html>
+<html lang="en" dir="ltr">
+    <head>
+        <meta charset="utf-8">
+        <title>Register</title>
+    </head>
+    <body>
+        <h1>Spell Check App</h1>
+        {% with failures = get_flashed_messages(category_filter=["failure"]) %}
+            {% if failures %}
+                <ul class=flashes id="success">
+                {% for failure in failures %}
+                <li><font color="red">{{ failure }}</font></li>
+                {% endfor %}
+                </ul>
+            {% endif %}
+        {% endwith %}
+        {% with successes = get_flashed_messages(category_filter=["success"]) %}
+            {% if successes %}
+                <ul class=flashes id="success">
+                {% for success in successes %}
+                <li><font color="green">{{ success }}</font></li>
+                {% endfor %}
+                </ul>
+            {% endif %}
+        {% endwith %}
+        <h2>Register</h2>
+        <form action="" method="post">
+            <input type="hidden" name="csrf_token" id="csrf_token" value="{{csrf_token()}}"/>
+            Username:
+            <input type="text" name="uname" id="uname"><br><br>
+            Password:
+            <input type="password" name="pword" id="pword"><br><br>
+            2FA:
+            <input type="text" name="2fa" id="2fa"><br><br>
+            <input type="submit" value="Submit"><br><br>
+        </form>
+        <p>
+            If you have an account,
+            <a href="{{url_for('login')}}">Login</a>  
+        </p>
+    </body>
+</html>

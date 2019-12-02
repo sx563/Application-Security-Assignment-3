@@ -1,0 +1,8 @@
+language: python
+python:
+  - 3.6
+before_install:
+  - chmod +x a.out
+install: pip install -r requirements.txt
+script: 
+  - flask run & tox
