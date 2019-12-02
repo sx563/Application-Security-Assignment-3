@@ -33,6 +33,13 @@ def add_custom_headers(response):
 
 db = SQLAlchemy(app)
 
+class QueryRecord(db.Model):
+    __tablename__ = "query_records"
+    id = db.Column(db.Integer, primary_key=True, autoincrement=True)
+    username = db.Column(db.String(30), nullable=False)
+    query_text = db.Column(db.Text, nullable=False)
+    query_results = db.Column(db.Text, nullable=False)
+
 class User(db.Model):
     __tablename__ = "users"
     id = db.Column(db.Integer, primary_key=True, autoincrement=True)
@@ -49,6 +56,11 @@ def addUser(username, password, twofa):
 
 if((User.query.filter_by(username="admin").count()) == 0):
     addUser("admin", "Administrator@1", "12345678901")
+
+def addQueryRecord(username, text, misspelled):
+    query_record = QueryRecord(username=username, query_text=text, query_results=misspelled)
+    db.session.add(query_record)  
+    db.session.commit()
 
 
 def isValidTwoFA(twofa):
@@ -75,6 +87,7 @@ def findMisspelled(text):
 @app.route("/")
 def home(): 
     return redirect(url_for("login"))
+
 
 @app.route("/register", methods = ["GET", "POST"])
 def register():
@@ -135,6 +148,7 @@ def spell_check():
             flash("Failure: Empty Field", "failure")
             return render_template("spell_check_input.html")
         misspelled = findMisspelled(textout)
+        addQueryRecord(user.username, textout, misspelled)
         return render_template("spell_check_output.html", textout = textout, misspelled = misspelled, isAdmin=(user.username == "admin"))
     if request.method == "GET":
         return render_template("spell_check_input.html", isAdmin=(user.username == "admin"))
