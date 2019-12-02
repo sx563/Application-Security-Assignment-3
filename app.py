@@ -1,64 +1,25 @@
-from flask import Flask, render_template, request, redirect, url_for, flash, session
-from flask import escape
+from flask import Flask, render_template, request, redirect
+from flask import url_for, flash, session, abort
 import subprocess 
 from flask_wtf import CSRFProtect
 import secrets
 from passlib.hash import sha256_crypt
-
-
-class User:
-    def __init__(self, username, password, twofa):
-        self.username = username
-        self.password = password
-        self.twofa = twofa
-    def getPassword(self):
-        return self.password
-    def gettwofa(self):
-        return self.twofa
-    
-Users = {}
-
-def isRegisteredUser(username):
-    global Users
-    if username in Users:
-        return True
-    else:
-        return False
-
-def addUser(username, password, twofa):
-    global Users
-    Users[username] = User(username, sha256_crypt.hash(password), twofa)
-
-def checkPassword(username, password):
-    global Users
-    if sha256_crypt.verify(password, Users[username].getPassword()):
-        return True
-    else:
-        return False
-
-def checktwofa(username, twofa):
-    global Users
-    if twofa == Users[username].gettwofa():
-        return True
-    else:
-        return False
-
-def isValidTwoFA(twofa):
-    if len(twofa) != 11:
-        return False
-    for char in twofa:
-        if not char.isdigit():
-            return False
-    return True
+from flask_sqlalchemy import SQLAlchemy
+import os
+from datetime import datetime
 
 
 app = Flask(__name__)
 app.secret_key = secrets.token_urlsafe(256)
 csrf = CSRFProtect(app)
 
+database_file = "sqlite:///" + os.path.join(os.getcwd(), "app.db")
+
 app.config.update(
     SESSION_COOKIE_HTTPONLY=True,
-    REMEMBER_COOKIE_HTTPONLY = True
+    REMEMBER_COOKIE_HTTPONLY = True,
+    SQLALCHEMY_DATABASE_URI = database_file,
+    SQLALCHEMY_TRACK_MODIFICATIONS = False
 )
 
 @app.after_request
@@ -70,24 +31,64 @@ def add_custom_headers(response):
     return response
 
 
+db = SQLAlchemy(app)
+
+class User(db.Model):
+    __tablename__ = "users"
+    id = db.Column(db.Integer, primary_key=True, autoincrement=True)
+    username = db.Column(db.String(30), index=False, unique=True, nullable=False)
+    password = db.Column(db.String(64), index=False, nullable=False)
+    twofa = db.Column(db.String(11), index=False, nullable=False)
+
+db.create_all()
+
+def addUser(username, password, twofa):
+    user = User(username=username, password=sha256_crypt.hash(password), twofa=twofa)
+    db.session.add(user)  
+    db.session.commit()
+
+if((User.query.filter_by(username="admin").count()) == 0):
+    addUser("admin", "Administrator@1", "12345678901")
+
+
+def isValidTwoFA(twofa):
+    if not (10 <= len(twofa) <= 11):
+        return False
+    for char in twofa:
+        if not char.isdigit():
+            return False
+    return True
+
+def findMisspelled(text):
+    spell_check_file_path = "./a.out"
+    text_file_path = "./static/inputtext.txt"
+    dict_file_path = "./static/wordlist.txt"
+    textfile = open(text_file_path,"w")
+    textfile.writelines(text)
+    textfile.close()
+    cmd = [spell_check_file_path,text_file_path, dict_file_path]
+    tmp=subprocess.check_output(cmd, universal_newlines=True)
+    misspelled = tmp.strip().replace("\n",", ")
+    return misspelled
+
 
 @app.route("/")
 def home(): 
-    return redirect(url_for("register"))
-
+    return redirect(url_for("login"))
 
 @app.route("/register", methods = ["GET", "POST"])
 def register():
-    if "username" in session:
+    if "user_id" in session:
         return redirect(url_for("spell_check"))
     if request.method == "POST":
-        username = escape(request.form["uname"])
-        password = escape(request.form["pword"])
-        twofa = escape(request.form["2fa"])
+        username = request.form["uname"]
+        password = request.form["pword"]
+        twofa = request.form["2fa"]
         if not username or not password or not twofa:
             flash("Failure: Empty Field(s)", "failure")
             return render_template("register.html")
-        if(not isRegisteredUser(username)):
+        user = User.query.filter_by(username=username).first()
+        if(not user):
             if(not isValidTwoFA(twofa)):
                 flash("Failure: Invalid 2FA", "failure")
             else:
@@ -99,19 +100,20 @@ def register():
     
 @app.route("/login", methods = ["GET", "POST"])
 def login():
-    if "username" in session:
+    if "user_id" in session:
         return redirect(url_for("spell_check"))
     if request.method == "POST":
-        username = escape(request.form["uname"])
-        password = escape(request.form["pword"])
-        twofa = escape(request.form["2fa"])
+        username = request.form["uname"]
+        password = request.form["pword"]
+        twofa = request.form["2fa"]
         if not username or not password or not twofa:
             flash("Failure: Empty Field(s)", "failure")
             return render_template("login.html")
-        if(isRegisteredUser(username)):
-            if(checkPassword(username, password)):
-                if(checktwofa(username, twofa)):
-                    session["username"] = username
+        user = User.query.filter_by(username=username).first()
+        if(user):
+            if(sha256_crypt.verify(password, user.password)):
+                if(user.twofa == twofa):
+                    session["user_id"] = user.id
                     flash("Success: User logged in", "success")
                     return redirect(url_for("spell_check"))
                 else:
@@ -124,34 +126,26 @@ def login():
 
 @app.route("/spell_check", methods = ["GET", "POST"])
 def spell_check():
-    if "username" in session:
-        if request.method == "POST":
-            textout = request.form["inputtext"]
-            if not textout:
-                flash("Failure: Empty Field", "failure")
-                return render_template("spell_check_input.html")
-            spell_check_file_path = "./a.out"
-            text_file_path = "./static/inputtext.txt"
-            dict_file_path = "./static/wordlist.txt"
-            textout = request.form['inputtext']
-            textfile = open(text_file_path,"w")
-            textfile.writelines(textout)
-            textfile.close()
-            cmd = [spell_check_file_path,text_file_path, dict_file_path]
-            tmp=subprocess.check_output(cmd, universal_newlines=True)
-            misspelled = tmp.strip().replace("\n",", ")
-            return render_template("spell_check_output.html", textout = textout, misspelled = misspelled)
-        if request.method == "GET":
+    if "user_id" not in session:
+        abort(401)
+    user = User.query.filter_by(id=session["user_id"]).first()
+    if request.method == "POST":
+        textout = request.form["inputtext"]
+        if not textout:
+            flash("Failure: Empty Field", "failure")
             return render_template("spell_check_input.html")
-    else:
-        return redirect(url_for("login"))
-    
+        misspelled = findMisspelled(textout)
+        return render_template("spell_check_output.html", textout = textout, misspelled = misspelled, isAdmin=(user.username == "admin"))
+    if request.method == "GET":
+        return render_template("spell_check_input.html", isAdmin=(user.username == "admin"))
 
 @app.route("/logout")
 def logout():
-    session.clear()
-    flash("Success: User logged out", "success")
+    if "user_id" in session:
+        session.clear()
+        flash("Success: User logged out", "success")
     return redirect(url_for("login"))
-    
+
+
 if __name__ == "__main__":
     app.run(debug=True)
