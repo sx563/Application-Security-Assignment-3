@@ -1,0 +1,22 @@
+{% extends "template.html" %}
+{% block title %}
+Spell Check
+{% endblock %}
+{% block content %}
+    <h2>
+        Login History
+        <a href="{{url_for('spell_check')}}">Spell Check</a>
+        <a href="{{url_for('query_history')}}">Query History</a>
+        <a href="{{url_for('logout')}}">Logout</a>
+    </h2>
+    <p id="userid">User ID: {{ user_id }}</p><br>
+    
+    {% for log_record in log_records %}
+    <ul>
+        <li id="login{{id}}">Log ID: {{ log_record.id }}</li>
+        <li id="login{{id}}_time">Login Time: {{ log_record.login_time }}</li>
+        <li id="logout{{id}}_time">Logout Time: {{ log_record.logout_time if (log_record.logout_time) else "N/A" }}</li>
+    </ul>
+    {% endfor %}
+    <a href="{{url_for('login_history')}}">Check Login History for another user</a><br>
+{% endblock %}

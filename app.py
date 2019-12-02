@@ -195,6 +195,23 @@ def query_history():
     numqueries = query_records.count()
     return render_template("query_history.html", numqueries=numqueries, query_records=query_records, isAdmin=(user.username == "admin"))
 
+@app.route("/login_history", methods = ["GET", "POST"])
+def login_history():
+    if "user_id" not in session:
+        abort(401)
+    user = User.query.filter_by(id=session["user_id"]).first()
+    if user.username == "admin":
+        if request.method == "POST":
+            userid_input = request.form["userid"]
+            log_records = LogRecord.query.filter_by(user_id=userid_input).order_by(LogRecord.id)
+            if log_records.count() == 0:
+                abort(404)
+            return render_template("login_history_output.html", user_id=userid_input, log_records=log_records)
+        if request.method == "GET":
+            return render_template("login_history_input.html")
+    else:
+        abort(401)
+
 @app.route("/logout")
 def logout():
     if "user_id" in session:
@@ -202,7 +219,6 @@ def logout():
         session.clear()
         flash("Success: User logged out", "success")
     return redirect(url_for("login"))
-
 
 if __name__ == "__main__":
     app.run(debug=True)
