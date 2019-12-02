@@ -4,3 +4,5 @@ tox-travis
 flask_wtf 
 bs4
 passlib
+sqlalchemy
+flask_sqlalchemy

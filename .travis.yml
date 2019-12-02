@@ -3,6 +3,7 @@ python:
   - 3.6
 before_install:
   - chmod +x a.out
+  - sudo apt-get install sqlite3
 install: pip install -r requirements.txt
 script: 
   - flask run & tox
